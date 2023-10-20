@@ -1,0 +1,90 @@
+Here are some SQL queries with common table expressions:
+
+
+INSERT INTO film_2(title,
+description, release_year)
+VALUES('The Avengers:End
+Game', 'American Marvel
+Comic Movie', 2019)
+
+
+SELECT MIN(rental_rate) AS min_rent,
+       MAX(rental_rate) AS max_rent,
+	   AVG(rental_rate) AS avg_rent,
+	   COUNT(rental_rate) AS count_rent_value,
+	   COUNT(*) AS count_rows
+FROM film 
+
+
+ SELECT C.city,
+        SUM (E.amount) AS sum_of_amount
+FROM customer A
+ INNER JOIN address B ON A. address_id = B.address_id
+INNER JOIN city C ON B. city_id =C. city_id
+INNER JOIN country D ON C. country_id = D. country_id
+INNER JOIN payment E ON A. customer_id = E. customer_id
+WHERE D. country IN (SELECT country
+ FROM (SELECT D.country,
+        SUM (customer_id) AS sum_of_customers
+FROM customer A
+INNER JOIN address B ON A. address_id = B.address_id
+INNER JOIN city C ON B. city_id =C. city_id
+INNER JOIN country D ON C. country_id = D. country_id
+GROUP BY country
+ORDER BY sum_of_customers DESC
+LIMIT 10)AS top10countries)
+GROUP BY country,city
+ORDER BY sum_of_amount DESC
+LIMIT 10
+
+
+   SELECT D.country,C.city,
+        SUM (customer_id) AS sum_of_customers
+FROM customer A
+INNER JOIN address B ON A. address_id = B.address_id
+INNER JOIN city C ON B. city_id =C. city_id
+INNER JOIN country D ON C. country_id = D. country_id
+GROUP BY country,city
+ORDER BY sum_of_customers DESC
+LIMIT 10
+
+WITH top10countries_cte (country) AS
+(SELECT E.country
+FROM customer B
+LEFT JOIN address C ON B.address_id = C.address_id
+LEFT JOIN city D ON C.city_id = D.city_id
+LEFT JOIN country E ON D.country_id = E.country_id
+GROUP BY E.country
+ORDER BY COUNT(B.customer_id) DESC
+LIMIT 10),
+top10cities_cte (city) AS
+(SELECT D.city
+FROM customer B
+LEFT JOIN address C ON B.address_id = C.address_id
+LEFT JOIN city D ON C.city_id = D.city_id
+LEFT JOIN country E ON D.country_id = E.country_id
+WHERE E.country IN (SELECT country FROM top10countries_cte)
+GROUP BY E.country, D.city
+ORDER BY COUNT(B.customer_id) DESC
+LIMIT 10),
+top5customers_cte (customer_id, first_name, last_name, country, city, total) AS
+(SELECT A.customer_id, B.first_name, B.last_name, E.country, D.city, SUM(amount)
+AS total
+FROM payment A
+LEFT JOIN customer B ON A.customer_id = B.customer_id
+LEFT JOIN address C ON B.address_id = C.address_id
+LEFT JOIN city D ON C.city_id = D.city_id
+LEFT JOIN country E ON D.country_id = E.country_id
+WHERE D.city IN (SELECT city FROM top10cities_cte)
+GROUP BY A.customer_id, B.first_name, B.last_name, E.country, D.city
+ORDER BY SUM(amount) DESC
+LIMIT 5)
+SELECT E.country, COUNT(DISTINCT B.customer_id) AS all_customer_count,
+COUNT(DISTINCT F.customer_id) AS top_customer_count
+FROM customer B
+LEFT JOIN address C ON B.address_id = C.address_id
+LEFT JOIN city D ON C.city_id = D.city_id
+LEFT JOIN country E ON D.country_id = E.country_id
+LEFT JOIN top5customers_cte F ON E.country = F.country
+GROUP BY E.country
+ORDER BY all_customer_count DESC
